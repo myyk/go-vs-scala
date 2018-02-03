@@ -2,7 +2,6 @@ package rant1
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -14,33 +13,41 @@ import (
 // Run with command:
 //    go test -bench .
 
+type subsetFunc func(data []string, length int) <-chan []string
+
 var Result [][][]string
 
 func BenchmarkSubsets(b *testing.B) {
+	benchmark(b, Subsets)
+}
+
+func BenchmarkSubsets2(b *testing.B) {
+	benchmark(b, Subsets2)
+}
+
+func benchmark(b *testing.B, subsetFunc subsetFunc) {
 	k := 2
-	input := make([]string, 31)
+	input := make([]string, 1500)
 	for i := range input {
 		input[i] = RandStringRunes(8)
 	}
-	// log.Println(len(input))
 
 	// n choose k should be output size
 	outputLen := new(big.Int)
 	outputLen.Binomial(int64(len(input)), int64(k))
-	log.Println(outputLen)
 
-	// a := make([][]string, int(outputLen.Int64()))
+	a := make([][]string, int(outputLen.Int64()))
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		s := Subsets(input, k)
+		s := subsetFunc(input, k)
 		j := 0
-		for range s {
-			// a[j] = next
+		for next := range s {
+			a[j] = next
 			j++
 		}
-		// Result = append(Result, a)
+		Result = append(Result, a)
 	}
 }
 
@@ -84,19 +91,21 @@ func Test_GenerateSubsetsKLength(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		description := fmt.Sprintf("k: %d, input: %v", scenario.k, scenario.input)
+		for i, subsetFunc := range []subsetFunc{Subsets, Subsets2} {
+			description := fmt.Sprintf("subsetFunc: %d, k: %d, input: %v", i, scenario.k, scenario.input)
 
-		subsets := Subsets(scenario.input, scenario.k)
+			subsets := subsetFunc(scenario.input, scenario.k)
 
-		// collect results from the chan
-		var actual [][]string
-		for next := range subsets {
-			actual = append(actual, next)
-		}
+			// collect results from the chan
+			var actual [][]string
+			for next := range subsets {
+				actual = append(actual, next)
+			}
 
-		assert.Len(t, actual, len(scenario.expected), description)
-		for _, next := range scenario.expected {
-			assert.Contains(t, actual, next, description)
+			assert.Len(t, actual, len(scenario.expected), description)
+			for _, next := range scenario.expected {
+				assert.Contains(t, actual, next, description)
+			}
 		}
 	}
 }

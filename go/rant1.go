@@ -41,3 +41,33 @@ func makeSubsets(c chan []string, inputs []string, k int) {
 		}
 	}
 }
+
+// Subsets2 generates all subsets of the slice of strings with the length provided.
+func Subsets2(data []string, length int) <-chan []string {
+	c := make(chan []string)
+	go func(c chan []string) {
+		defer close(c)
+		makeSubsets2(c, data, []string{}, length)
+	}(c)
+	return c
+}
+
+func makeSubsets2(c chan []string, inputs, outputBase []string, k int) {
+	if k < 0 {
+		return
+	}
+
+	inputLength := len(inputs)
+	if k > inputLength {
+		return
+	}
+
+	if k == 0 {
+		c <- outputBase
+		return
+	}
+
+	for i, next := range inputs {
+		makeSubsets2(c, inputs[i+1:], append(outputBase, next), k-1)
+	}
+}
